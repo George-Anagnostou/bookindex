@@ -14,19 +14,18 @@ import (
 )
 
 type Book struct {
-	Name    string
-	Href    template.URL
-	Folder  string
-	Format  string
-	Size    string
-	ModTime time.Time
+	Name     string
+	Href     template.URL
+	Folder   string
+	Format   string
+	Size     string
+	Modified string
 }
 
 type PageData struct {
 	Title       string
 	GeneratedAt string
 	Count       int
-	Recent      []Book
 	Books       []Book
 }
 
@@ -55,20 +54,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	recent := make([]Book, len(books))
-	copy(recent, books)
-	sort.Slice(recent, func(i, j int) bool {
-		return recent[i].ModTime.After(recent[j].ModTime)
-	})
-	if len(recent) > 12 {
-		recent = recent[:12]
-	}
-
 	data := PageData{
 		Title:       title,
 		GeneratedAt: time.Now().Format("2006-01-02 15:04"),
 		Count:       len(books),
-		Recent:      recent,
 		Books:       books,
 	}
 
@@ -121,13 +110,14 @@ func collectBooks(root string) ([]Book, error) {
 			folder = ""
 		}
 
+		modTime := info.ModTime()
 		books = append(books, Book{
-			Name:    displayName(name),
-			Href:    urlPath(rel),
-			Folder:  folder,
-			Format:  strings.TrimPrefix(strings.ToUpper(ext), "."),
-			Size:    humanSize(info.Size()),
-			ModTime: info.ModTime(),
+			Name:     displayName(name),
+			Href:     urlPath(rel),
+			Folder:   folder,
+			Format:   strings.TrimPrefix(strings.ToUpper(ext), "."),
+			Size:     humanSize(info.Size()),
+			Modified: modTime.Format("2006-01-02"),
 		})
 
 		return nil
@@ -217,48 +207,41 @@ var pageTemplate = template.Must(template.New("index").Parse(`<!doctype html>
 
 			body {
 				margin: 0;
-				padding: 1.25rem;
+				padding: 1rem;
 				max-width: 900px;
 				font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 				background: var(--bg);
 				color: var(--fg);
-				line-height: 1.4;
+				line-height: 1.25;
 			}
 
 			header {
-				margin-bottom: 1.5rem;
+				margin-bottom: 0.8rem;
 				border-bottom: 1px solid var(--line);
 			}
 
 			h1 {
-				font-size: 1.6rem;
+				font-size: 1.35rem;
 				margin: 0 0 0.25rem 0;
-			}
-
-			h2 {
-				font-size: 1.1rem;
-				margin-top: 2rem;
-				border-bottom: 1px solid var(--line);
-				padding-bottom: 0.25rem;
 			}
 
 			.summary {
 				color: var(--muted);
-				font-size: 0.9rem;
-				margin-bottom: 1rem;
+				font-size: 0.82rem;
+				margin-bottom: 0.65rem;
 			}
 
 			.search {
-				margin: 1rem 0;
+				margin: 0 0 0.75rem;
 			}
 
 			input {
 				width: 100%;
 				box-sizing: border-box;
-				padding: 0.75rem;
+				padding: 0.5rem 0.6rem;
 				border: 1px solid var(--line);
-				border-radius: 0.5rem;
-				font-size: 1rem;
+				border-radius: 0.35rem;
+				font-size: 0.95rem;
 				background: white;
 			}
 
@@ -271,15 +254,16 @@ var pageTemplate = template.Must(template.New("index").Parse(`<!doctype html>
 			li {
 				background: var(--card);
 				border: 1px solid var(--line);
-				border-radius: 0.5rem;
-				padding: 0.75rem;
-				margin-bottom: 0.6rem;
+				border-radius: 0.25rem;
+				padding: 0.42rem 0.55rem;
+				margin-bottom: 0.25rem;
 			}
 
 			a {
 				color: var(--fg);
 				text-decoration: none;
 				font-weight: 600;
+				font-size: 0.95rem;
 			}
 
 			a:hover {
@@ -287,11 +271,11 @@ var pageTemplate = template.Must(template.New("index").Parse(`<!doctype html>
 			}
 
 			.meta {
-				margin-top: 0.25rem;
+				margin-top: 0.12rem;
 				color: var(--muted);
-				font-size: 0.85rem;
+				font-size: 0.76rem;
 				display: flex;
-				gap: 0.6rem;
+				gap: 0.35rem;
 				flex-wrap: wrap;
 			}
 
@@ -310,44 +294,29 @@ var pageTemplate = template.Must(template.New("index").Parse(`<!doctype html>
 		<input id="q" type="search" placeholder="Filter books...">
 	</div>
 
-	<section>
-		<h2>Recently Added</h2>
-		<ul>
-			{{range .Recent}}
-			<li>
-				<a href="{{.Href}}">{{.Name}}</a>
-				<div class="meta">
-					{{if .Folder}}<span class="folder">{{.Folder}}</span>{{end}}
-					<span>{{.Format}}</span>
-					<span>{{.Size}}</span>
-				</div>
-			</li>
-			{{end}}
-		</ul>
-	</section>
-
-	<section>
-		<h2>All Books</h2>
-		<ul id="books">
-			{{range .Books}}
-			<li>
-				<a href="{{.Href}}">{{.Name}}</a>
-				<div class="meta">
-					{{if .Folder}}<span class="folder">{{.Folder}}</span>{{end}}
-					<span>{{.Format}}</span>
-					<span>{{.Size}}</span>
-				</div>
-			</li>
-			{{end}}
-		</ul>
-	</section>
+	<ul id="books">
+		{{range .Books}}
+		<li>
+			<a href="{{.Href}}">{{.Name}}</a>
+			<div class="meta">
+				{{if .Folder}}<span class="folder">{{.Folder}}</span><span>-</span>{{end}}
+				<span>{{.Format}}</span>
+				<span>-</span>
+				<span>{{.Size}}</span>
+				<span>-</span>
+				<span>modified {{.Modified}}</span>
+			</div>
+		</li>
+		{{end}}
+	</ul>
 
 	<script>
 		const q = document.getElementById("q");
 		const items = [...document.querySelectorAll("#books li")];
 
 		q.addEventListener("input", () => {
-			const needle = q.value.toLowerCase();
+			const needle = q.value.trim().toLowerCase();
+
 			for (const item of items) {
 				item.style.display = item.textContent.toLowerCase().includes(needle) ? "" : "none";
 			}

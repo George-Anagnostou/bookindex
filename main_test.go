@@ -24,8 +24,8 @@ func TestCollectBooks(t *testing.T) {
 		t.Fatalf("collectBooks() returned %d books, want 2: %#v", len(books), books)
 	}
 
-	assertBook(t, books[0], "Dune", "Dune.epub", "", "EPUB")
-	assertBook(t, books[1], "The Left - Hand of Darkness", "Sci-Fi/The_Left-Hand_of_Darkness.pdf", "Sci-Fi", "PDF")
+	assertBook(t, books[0], "Dune", "/Dune.epub", "", "EPUB")
+	assertBook(t, books[1], "The Left - Hand of Darkness", "/Sci-Fi/The_Left-Hand_of_Darkness.pdf", "Sci-Fi", "PDF")
 }
 
 func TestCollectBooksWithDotRoot(t *testing.T) {
@@ -54,13 +54,13 @@ func TestCollectBooksWithDotRoot(t *testing.T) {
 	if len(books) != 1 {
 		t.Fatalf("collectBooks() returned %d books, want 1: %#v", len(books), books)
 	}
-	assertBook(t, books[0], "Dune", "Dune.epub", "", "EPUB")
+	assertBook(t, books[0], "Dune", "/Dune.epub", "", "EPUB")
 }
 
 func TestURLPath(t *testing.T) {
 	got := urlPath(filepath.Join("Reference", "C++ Primer.pdf"))
-	want := "Reference/C++%20Primer.pdf"
-	if got != want {
+	want := "/Reference/C++%20Primer.pdf"
+	if string(got) != want {
 		t.Fatalf("urlPath() = %q, want %q", got, want)
 	}
 }
@@ -82,7 +82,7 @@ func assertBook(t *testing.T, book Book, name, href, folder, format string) {
 	if book.Name != name {
 		t.Errorf("Name = %q, want %q", book.Name, name)
 	}
-	if book.Href != href {
+	if string(book.Href) != href {
 		t.Errorf("Href = %q, want %q", book.Href, href)
 	}
 	if book.Folder != folder {
